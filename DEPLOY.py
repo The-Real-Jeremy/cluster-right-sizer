@@ -194,9 +194,11 @@ def deploy(name, source):
             print("  start:", str(e)[:120])
         wait_compute(name, {"ACTIVE"})
     # Starting a stopped app redeploys its last build first; a new deployment is refused until that one finishes.
+    def _busy(a):
+        return any(((a.get(k) or {}).get("status") or {}).get("state") in ("IN_PROGRESS", "PENDING")
+                   for k in ("pending_deployment", "active_deployment"))
     for _ in range(120):
-        pend = (get_app(name) or {}).get("pending_deployment")
-        if not pend or (pend.get("status") or {}).get("state") not in ("IN_PROGRESS", "PENDING"):
+        if not _busy(get_app(name) or {}):
             break
         time.sleep(10)
     print(f"deploying {source} → {name} …")
@@ -205,9 +207,9 @@ def deploy(name, source):
             dep = api.do("POST", f"/api/2.0/apps/{name}/deployments", body={"source_code_path": source, "mode": "SNAPSHOT"})
             break
         except Exception as e:
-            if "pending deployment" not in str(e) or attempt == 29:
+            if "deployment in progress" not in str(e) or attempt == 29:
                 raise
-            print("  a previous deployment is still running; waiting …")
+            print("  a previous deployment is still running (starting a stopped app redeploys it first); waiting …")
             time.sleep(20)
     t0 = time.time()
     while True:
