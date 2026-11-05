@@ -1,0 +1,18 @@
+# Runtime config. Standard-library Python only: no requirements.txt, nothing to install, works air-gapped.
+# Every CRS_* value is optional; empty means the default described in lib/config.py.
+command: ["python", "app.py"]
+env:
+  - name: CRS_WAREHOUSE_ID        # empty = auto-pick a warehouse the viewer can use (running + serverless first)
+    value: ""
+  - name: CRS_WORKSPACE_IDS       # extra workspace ids for the system-table panels (this workspace is always included)
+    value: ""
+  - name: CRS_LOOKBACK_DAYS
+    value: "30"
+  - name: CRS_TIMEZONE            # for the heatmap's hour-of-day, e.g. Australia/Sydney
+    value: "UTC"
+  - name: CRS_GENIE_SPACE_ID      # Ask Genie panel; written by DEPLOY (genie_mode create|existing); empty = hidden
+    value: ""
+  - name: CRS_DEMO                # off | allowed | default  (the "Synthetic demo" switch)
+    value: "allowed"
+  - name: BUILD_ID
+    value: "dev"

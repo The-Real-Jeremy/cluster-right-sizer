@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cluster Right-Sizer</title>
+<link rel="icon" href="static/img/favicon.svg?v={{V}}" type="image/svg+xml">
+<link rel="stylesheet" href="static/app.css?v={{V}}">
+</head>
+<body data-demo-setting="{{DEMO}}">
+<header class="top">
+  <div class="brand">
+    <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path class="arc" d="M7 21a9 9 0 0 1 18 0"/><path class="needle" d="M16 21l5-7"/><circle cx="16" cy="21" r="2.2"/></svg>
+    <div>
+      <h1>Cluster Right-Sizer</h1>
+      <p class="sub">All-purpose clusters: who uses them, how hard, and what they could be</p>
+    </div>
+  </div>
+  <div class="controls">
+    <label class="seg" title="Look-back window">
+      <span>Window</span>
+      <select id="days">
+        <option value="7">7 days</option><option value="14">14 days</option><option value="30" selected>30 days</option>
+        <option value="60">60 days</option><option value="90">90 days</option>
+      </select>
+    </label>
+    <div class="toggle" id="sourceToggle" role="group" aria-label="Data source">
+      <button data-src="live" class="on">Live</button><button data-src="demo">Synthetic demo</button>
+    </div>
+    <button class="icon" id="refresh" title="Re-check access and reload">↻</button>
+    <div class="who" id="who">…</div>
+  </div>
+</header>
+
+<div class="banner demo" id="demoBanner" hidden>Synthetic demo data — ten made-up clusters. Nothing here comes from this workspace. Switch to <b>Live</b> for real data.</div>
+
+<section class="access" id="access" aria-label="What you can see">
+  <div class="chip skel"></div><div class="chip skel"></div><div class="chip skel"></div><div class="chip skel"></div>
+  <button class="link" id="howto">Your access &amp; what is missing</button>
+</section>
+
+<section class="kpis" id="kpis"></section>
+
+<main class="layout">
+  <section class="card fleet">
+    <div class="card-head">
+      <h2>All-purpose clusters</h2>
+      <div class="tools">
+        <input id="q" type="search" placeholder="Filter by name, owner, node type…" autocomplete="off">
+        <label class="check"><input type="checkbox" id="onlyRecs"> With recommendations</label>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="fleet">
+        <thead><tr>
+          <th data-k="name">Cluster</th>
+          <th data-k="max_workers" title="Configured workers and the peak actually reached">Workers: configured · peak</th>
+          <th data-k="autoterm" class="num">Auto-term</th>
+          <th data-k="running_hours" class="num">Running h</th>
+          <th data-k="w_cpu_p95" title="p95 over running minutes">Workers CPU · mem p95</th>
+          <th data-k="d_cpu_p95">Driver CPU · mem p95</th>
+          <th data-k="users" class="num">Users</th>
+          <th data-k="list_cost" class="num">Cost</th>
+          <th data-k="score" class="num" title="0 = right-sized, 100 = very oversized">Oversize</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty" id="fleetEmpty" hidden></div>
+    </div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <div class="eyebrow" id="dEyebrow"></div>
+      <h2 id="dTitle"></h2>
+      <div class="facts" id="dFacts"></div>
+    </div>
+    <button class="icon close" id="dClose" title="Close (Esc)">✕</button>
+  </div>
+  <nav class="tabs" id="dTabs">
+    <button data-t="recs" class="on">Recommendations</button>
+    <button data-t="workers">Workers over time</button>
+    <button data-t="util">Utilisation</button>
+    <button data-t="heat">Heatmap</button>
+    <button data-t="nodes">Per node</button>
+    <button data-t="users">Users &amp; run times</button>
+    <button data-t="events">Events</button>
+    <button data-t="genie" id="genieTab" hidden>Ask Genie</button>
+  </nav>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+<div class="scrim" id="scrim"></div>
+
+<dialog id="patDlg">
+  <form class="dlg" id="patForm">
+    <div class="proto"><b>Prototype edition.</b> This version asks for a personal access token only because Databricks Apps has no
+      user-authorization scope for the Clusters API yet. The standard edition will not need a token. The system-table panels
+      (utilisation, cost, users and run times) already work without it, on your normal sign-in.</div>
+    <h2>Your personal access token</h2>
+    <p class="pmsg" id="patMsg"></p>
+    <p>Databricks Apps cannot call the Clusters API as you (there is no user-authorization scope for it), so the cluster list and its events are read with <b>your own token</b>. You see exactly the clusters you have a permission on.</p>
+    <label class="fld">Token<input type="password" id="patInput" autocomplete="off" spellcheck="false" placeholder="dapi…"></label>
+    <div class="note">Create one in Databricks: your avatar → Settings → Developer → Access tokens → Generate. A short lifetime (for example 30 days) is enough.</div>
+    <ul class="note fine">
+      <li>It is checked against your sign-in: a token that belongs to someone else is refused.</li>
+      <li>It is sealed and kept only in an HttpOnly cookie in this browser (max 30 days). Page scripts cannot read it; the app never stores or logs it.<span id="patMemNote"> Inside App-ception the sealing key lives only in this app's memory, so other apps in the catalog cannot read it, and you re-enter the token after the app restarts.</span></li>
+      <li>It is used only to read clusters, cluster events and node types. Everything else runs on your normal sign-in.</li>
+    </ul>
+    <div class="dlg-err" id="patErr" hidden></div>
+    <div class="dlg-foot">
+      <button type="button" class="ghost" id="patForget">Forget my token</button>
+      <span style="flex:1"></span>
+      <button type="button" class="ghost" id="patCancel">Not now</button>
+      <button type="submit" class="primary" id="patSave">Save token</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="howtoDlg">
+  <form method="dialog" class="dlg">
+    <h2>Your access, and what is missing</h2>
+    <div id="howtoBody"></div>
+    <div class="dlg-foot"><button class="primary">Close</button></div>
+  </form>
+</dialog>
+
+<div class="tip" id="tip" hidden></div>
+<script src="static/charts.js?v={{V}}"></script>
+<script src="static/app.js?v={{V}}"></script>
+</body>
+</html>

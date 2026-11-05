@@ -1,0 +1,6 @@
+# Card metadata when this app runs as a child of App-ception (ignored standalone).
+title: Cluster Right-Sizer
+description: All-purpose clusters - who uses them, driver and worker CPU and memory, run times, and concrete right-sizing recommendations. Reads clusters with your own token and system tables with your own grants.
+category: Platform
+# The PAT cookie must stay on this child's own path: pin prefix mounting (the app also sets Path itself).
+mount: prefix

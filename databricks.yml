@@ -1,0 +1,20 @@
+# Bundle used by the CLI deploy and read by the App Catalog to find the app root and its user scopes.
+bundle:
+  name: cluster-right-sizer
+
+variables:
+  app_name:
+    default: cluster-right-sizer
+
+resources:
+  apps:
+    cluster_right_sizer:
+      name: ${var.app_name}
+      description: "Right-size classic all-purpose clusters: who uses them, how hard, what they could be"
+      source_code_path: ./app
+      user_api_scopes:
+        - sql
+
+targets:
+  dev:
+    default: true
