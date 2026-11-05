@@ -342,10 +342,28 @@ if MODE == "child":
                 break
             time.sleep(1)
         print("previous copy kept at", bak)
-    skip = lambda d, names: [n for n in names if n.startswith("DEPLOY") or n == ".git"]
-    shutil.copytree(SRC, dest, ignore=skip)
+    # Copy only what the child needs. Workspace NOTEBOOK objects (DEPLOY, setup/demo_load) cannot be copied through
+    # /Workspace FUSE (Errno 95 "Operation not supported"), and the catalog does not need them.
+    NEEDED = ["app", "catalog.yaml", "databricks.yml", "README.md", "LICENSE"]
+    os.makedirs(dest)
+    skipped = []
+    def _copy(src, dst):
+        try:
+            shutil.copy2(src, dst)
+        except OSError as e:
+            if e.errno not in (95, getattr(__import__("errno"), "EOPNOTSUPP", 95), getattr(__import__("errno"), "ENOTSUP", 95)):
+                raise
+            skipped.append(src)          # a notebook object: not part of the app
+    for name in NEEDED:
+        src_p = os.path.join(SRC, name)
+        if os.path.isdir(src_p):
+            shutil.copytree(src_p, os.path.join(dest, name), copy_function=_copy)
+        elif os.path.isfile(src_p):
+            _copy(src_p, os.path.join(dest, name))
+    if skipped:
+        print("skipped notebook objects (not part of the app):", [os.path.relpath(x, SRC) for x in skipped])
     write_settings(f"{dest}/app/app.yaml")
-    n_src = sum(len([f for f in fs if not f.startswith("DEPLOY")]) for r, _, fs in os.walk(SRC) if "/.git" not in r)
+    n_src = sum(len(fs) for r, _, fs in os.walk(os.path.join(SRC, "app"))) + sum(os.path.isfile(os.path.join(SRC, n)) for n in NEEDED[1:]) - len(skipped)
     n_dst = sum(len(fs) for _, _, fs in os.walk(dest))
     assert n_dst == n_src, f"copied {n_dst} of {n_src} files into {dest}"
     print(f"copied {n_dst} files into {dest}")
