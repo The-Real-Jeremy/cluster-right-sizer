@@ -10,7 +10,8 @@ clusters/events, list-node-types and SCIM Me. SQL never uses it (that runs on th
 Sealing uses the standard library only (no `cryptography` wheel, so the app stays air-gap friendly):
 encrypt-then-MAC with HMAC-SHA256 as both the keystream PRF (counter mode) and the 256-bit tag. The keys are
 derived from the app's own client secret, which never leaves the container, so a copied cookie is useless
-outside this app and a cookie survives restarts.
+outside this app. Standalone, a saved token survives a redeploy but not an app Stop and Start; inside
+App-ception the key is per process (see key_mode).
 """
 import base64
 import hashlib
@@ -37,7 +38,7 @@ def _child_name():
 
 def key_mode():
     """memory  : a random key that only this process holds; saved tokens must be re-entered after a restart.
-       derived : derived from the app's own client secret, so a cookie survives restarts.
+       derived : derived from the app's own client secret: a cookie survives a redeploy, not an app Stop and Start.
     As an App-ception child every sibling inherits the SAME client secret and app name, so a derived key would let any
     sibling child unseal this cookie. Children therefore always use 'memory'. Standalone defaults to 'derived'
     (the secret belongs to this app alone); CRS_PAT_KEY=memory forces 'memory' there too."""
@@ -144,7 +145,7 @@ def from_request(headers):
     data = unseal(sealed)
     if not data or not data.get("t"):
         why = ("The app restarted, and saved tokens are sealed with a key that lives only in its memory (by design). Enter it again."
-               if key_mode() == "memory" else "Your saved token could not be read (the app's key changed). Enter it again.")
+               if key_mode() == "memory" else "Your saved token could not be read: the app was stopped and started since you saved it. Enter it again.")
         return PatState("none", why, clear=True)
     if viewer and data.get("e") != viewer:
         return PatState("wrong_user", "The saved token belongs to another user. Enter your own personal access token.", clear=True)

@@ -81,9 +81,12 @@ that would add them.
 Databricks Apps has no user-authorization scope for the Clusters API (`clusters`, `compute.clusters` and similar are
 rejected; only scopes such as `sql` are accepted), so the forwarded sign-in token cannot list clusters. The PAT:
 - is checked against the signed-in user (someone else's token is refused);
-- is sealed (HMAC-SHA256 encrypt-then-MAC, key derived from the app's own client secret) into an
-  `HttpOnly; Secure; SameSite=Strict` cookie on the app's path (inside App-ception the path is the child's prefix),
-  max 30 days; page scripts cannot read it and nothing is stored or logged server-side;
+- is sealed (HMAC-SHA256 encrypt-then-MAC) into an `HttpOnly; Secure; SameSite=Strict` cookie on the app's path
+  (inside App-ception the path is the child's prefix), max 30 days; page scripts cannot read it and nothing is stored
+  or logged server-side;
+- **how long it lasts:** standalone, the key is derived from the app's own client secret, so a saved token survives a
+  redeploy but **not an app Stop and Start** (re-enter it then). Inside App-ception the key lives only in the app's
+  memory, so the token must be re-entered whenever the catalog restarts the child (other children cannot read it);
 - is used only for clusters/list, clusters/get, clusters/events, list-node-types and SCIM Me;
 - can be forgotten from the app; an expired or revoked token clears the cookie and asks again.
 
